@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/card"
 import { downloadFile } from "@/lib/download-file"
 import { firstError } from "@/lib/form/first-error"
+import * as ratio from "@/lib/image/aspect-ratio"
 import { imageProcessFormData } from "@/lib/image/image-request"
+import { readImageSize } from "@/lib/image/read-image-size"
 import {
   adjustments,
   defaultImageFormValues,
@@ -34,7 +36,7 @@ export function ImageJobForm() {
   const { image, processedImage, setImage, setProcessedImage } =
     useImageContext()
   const downloadable = processedImage ?? image
-  const aspectRatio = useRef<number | null>(null)
+  const lockedRatioRef = useRef<number | null>(null)
   const sourceFile = useRef<File | null>(null)
 
   const form = useForm({
@@ -67,39 +69,41 @@ export function ImageJobForm() {
     },
   })
 
-  function setDimension(field: "width" | "height", value: number | null) {
-    form.setFieldValue(field, value)
-    if (value === null || value < 1 || !form.getFieldValue("keepRatio")) return
-
-    const ratio = aspectRatio.current
-    if (!ratio) {
-      const other = form.getFieldValue(field === "width" ? "height" : "width")
-      if (other !== null && other >= 1) {
-        aspectRatio.current = field === "width" ? value / other : other / value
-      }
-      return
-    }
-
-    if (field === "width") {
-      form.setFieldValue("height", Math.max(1, Math.round(value / ratio)))
-    } else {
-      form.setFieldValue("width", Math.max(1, Math.round(value * ratio)))
+  function currentDimensionState(): ratio.DimensionState {
+    return {
+      width: form.getFieldValue("width"),
+      height: form.getFieldValue("height"),
+      keepRatio: form.getFieldValue("keepRatio"),
+      lockedRatio: lockedRatioRef.current,
     }
   }
 
-  async function applySourceSize(file: File) {
+  function writeDimensionState(next: ratio.DimensionState) {
+    form.setFieldValue("width", next.width)
+    form.setFieldValue("height", next.height)
+    lockedRatioRef.current = next.lockedRatio
+  }
+
+  function setDimension(side: "width" | "height", value: number | null) {
+    writeDimensionState(
+      ratio.changeDimension(currentDimensionState(), side, value)
+    )
+  }
+
+  function onKeepRatioChange(checked: boolean) {
+    form.setFieldValue("keepRatio", checked)
+    const next = ratio.setKeepRatio(
+      { ...currentDimensionState(), keepRatio: checked },
+      checked
+    )
+    lockedRatioRef.current = next.lockedRatio
+  }
+
+  async function onSourceFile(file: File) {
     sourceFile.current = file
-    try {
-      const bitmap = await createImageBitmap(file)
-      const { width, height } = bitmap
-      bitmap.close()
-      if (sourceFile.current !== file || width < 1 || height < 1) return
-      aspectRatio.current = width / height
-      form.setFieldValue("width", width)
-      form.setFieldValue("height", height)
-    } catch {
-      // Leave the size fields as the user set them.
-    }
+    const size = await readImageSize(file)
+    if (size === null || sourceFile.current !== file) return
+    writeDimensionState(ratio.applySourceSize(currentDimensionState(), size))
   }
 
   return (
@@ -129,7 +133,7 @@ export function ImageJobForm() {
                   field.handleChange(file)
                   if (file) {
                     setImage(file)
-                    void applySourceSize(file)
+                    void onSourceFile(file)
                   }
                 }}
               />
@@ -170,17 +174,7 @@ export function ImageJobForm() {
                   label="Keep ratio"
                   onChange={(checked) => {
                     field.handleChange(checked)
-                    if (!checked) return
-                    const width = form.getFieldValue("width")
-                    const height = form.getFieldValue("height")
-                    if (
-                      width !== null &&
-                      height !== null &&
-                      width >= 1 &&
-                      height >= 1
-                    ) {
-                      aspectRatio.current = width / height
-                    }
+                    onKeepRatioChange(checked)
                   }}
                 />
               )}
