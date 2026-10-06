@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const resolutions = [72, 150, 300] as const
 
-const imageTypes = [
+export const imageTypes = [
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -27,10 +27,10 @@ function percent(label: string) {
 }
 
 export const imageFormSchema = z.object({
-  image: imageFileSchema.nullable(),
   width: dimensionSchema.nullable(),
   height: dimensionSchema.nullable(),
   keepRatio: z.boolean(),
+  lockedRatio: z.number().positive().nullable(),
   resolution: z.union([z.literal(72), z.literal(150), z.literal(300)]),
   brightness: percent("Brightness"),
   contrast: percent("Contrast"),
@@ -42,12 +42,12 @@ export const imageFormSchema = z.object({
 })
 
 export const imageFormSubmitSchema = imageFormSchema.extend({
-  image: imageFileSchema,
   width: dimensionSchema,
   height: dimensionSchema,
 })
 
 export type ImageFormValues = z.infer<typeof imageFormSchema>
+export type ImageFormSubmitValues = z.infer<typeof imageFormSubmitSchema>
 export type Resolution = ImageFormValues["resolution"]
 
 export const effects = [
@@ -70,10 +70,10 @@ export const adjustments = [
 }>
 
 export const defaultImageFormValues: ImageFormValues = {
-  image: null,
   width: null,
   height: null,
   keepRatio: true,
+  lockedRatio: null,
   resolution: 150,
   brightness: 100,
   contrast: 100,

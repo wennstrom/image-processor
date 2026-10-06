@@ -3,6 +3,7 @@ import { useRef, useState } from "react"
 import type { DragEvent } from "react"
 
 import { Button } from "@/components/ui/button"
+import { imageTypes } from "@/lib/validation/image-form"
 import { cn } from "cn"
 
 export function ImageDropzone({
@@ -46,7 +47,7 @@ export function ImageDropzone({
           id={inputId}
           name={inputId}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept={imageTypes.join(",")}
           className="sr-only"
           onChange={(event) => {
             onFile(event.target.files?.[0] ?? null)

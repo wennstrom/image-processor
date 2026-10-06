@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 
 import { useImageContext } from "@/components/image-context"
 import {
@@ -18,16 +18,15 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { downloadFile } from "@/lib/download-file"
-import { firstError } from "@/lib/form/first-error"
 import * as ratio from "@/lib/image/aspect-ratio"
 import { imageProcessFormData } from "@/lib/image/image-request"
 import { readImageSize } from "@/lib/image/read-image-size"
 import {
   adjustments,
   defaultImageFormValues,
-  dimensionSchema,
   effects,
   imageFileSchema,
+  imageFormSchema,
   imageFormSubmitSchema,
 } from "@/lib/validation/image-form"
 import { processImageFn } from "@/server/image"
@@ -36,27 +35,31 @@ export function ImageJobForm() {
   const { image, processedImage, setImage, setProcessedImage } =
     useImageContext()
   const downloadable = processedImage ?? image
-  const lockedRatioRef = useRef<number | null>(null)
-  const sourceFile = useRef<File | null>(null)
+  const imageRef = useRef(image)
+  imageRef.current = image
+  const latestAccepted = useRef<File | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: defaultImageFormValues,
     validators: {
+      onChange: imageFormSchema,
       onSubmit: imageFormSubmitSchema,
     },
     onSubmit: async ({ value }) => {
-      const file = value.image
-      if (!file || value.width === null || value.height === null) return
+      const file = imageRef.current
+      if (!file) return
+      const values = imageFormSubmitSchema.parse(value)
 
       const body = imageProcessFormData({
         image: file,
-        resolution: value.resolution,
-        width: value.width,
-        height: value.height,
-        brightness: value.brightness,
-        contrast: value.contrast,
-        saturation: value.saturation,
-        grayscale: value.grayscale,
+        resolution: values.resolution,
+        width: values.width,
+        height: values.height,
+        brightness: values.brightness,
+        contrast: values.contrast,
+        saturation: values.saturation,
+        grayscale: values.grayscale,
       })
 
       const response = await processImageFn({ data: body })
@@ -74,14 +77,14 @@ export function ImageJobForm() {
       width: form.getFieldValue("width"),
       height: form.getFieldValue("height"),
       keepRatio: form.getFieldValue("keepRatio"),
-      lockedRatio: lockedRatioRef.current,
+      lockedRatio: form.getFieldValue("lockedRatio"),
     }
   }
 
   function writeDimensionState(next: ratio.DimensionState) {
     form.setFieldValue("width", next.width)
     form.setFieldValue("height", next.height)
-    lockedRatioRef.current = next.lockedRatio
+    form.setFieldValue("lockedRatio", next.lockedRatio)
   }
 
   function setDimension(side: "width" | "height", value: number | null) {
@@ -92,17 +95,36 @@ export function ImageJobForm() {
 
   function onKeepRatioChange(checked: boolean) {
     form.setFieldValue("keepRatio", checked)
-    const next = ratio.setKeepRatio(
-      { ...currentDimensionState(), keepRatio: checked },
-      checked
+    writeDimensionState(
+      ratio.setKeepRatio(
+        { ...currentDimensionState(), keepRatio: checked },
+        checked
+      )
     )
-    lockedRatioRef.current = next.lockedRatio
   }
 
-  async function onSourceFile(file: File) {
-    sourceFile.current = file
+  async function acceptImage(file: File | null) {
+    if (file === null) {
+      setImage(null)
+      setProcessedImage(null)
+      setImageError(null)
+      latestAccepted.current = null
+      return
+    }
+
+    const parsed = imageFileSchema.safeParse(file)
+    if (!parsed.success) {
+      setImageError(parsed.error.issues[0]?.message ?? "Upload an image")
+      return
+    }
+
+    setImageError(null)
+    setImage(file)
+    setProcessedImage(null)
+    latestAccepted.current = file
+
     const size = await readImageSize(file)
-    if (size === null || sourceFile.current !== file) return
+    if (size === null || latestAccepted.current !== file) return
     writeDimensionState(ratio.applySourceSize(currentDimensionState(), size))
   }
 
@@ -120,32 +142,18 @@ export function ImageJobForm() {
         }}
       >
         <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          <form.Field
-            name="image"
-            validators={{ onChange: imageFileSchema.nullable() }}
-          >
-            {(field) => (
-              <ImageDropzone
-                file={field.state.value}
-                error={firstError(field.state.meta.errors)}
-                inputId={field.name}
-                onFile={(file) => {
-                  field.handleChange(file)
-                  if (file) {
-                    setImage(file)
-                    void onSourceFile(file)
-                  }
-                }}
-              />
-            )}
-          </form.Field>
+          <ImageDropzone
+            file={image}
+            error={imageError ?? undefined}
+            inputId="image"
+            onFile={(file) => {
+              void acceptImage(file)
+            }}
+          />
 
           <fieldset className="flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-2">
-              <form.Field
-                name="width"
-                validators={{ onChange: dimensionSchema.nullable() }}
-              >
+              <form.Field name="width">
                 {(field) => (
                   <DimensionField
                     field={field}
@@ -154,10 +162,7 @@ export function ImageJobForm() {
                   />
                 )}
               </form.Field>
-              <form.Field
-                name="height"
-                validators={{ onChange: dimensionSchema.nullable() }}
-              >
+              <form.Field name="height">
                 {(field) => (
                   <DimensionField
                     field={field}
@@ -172,10 +177,7 @@ export function ImageJobForm() {
                 <CheckboxField
                   field={field}
                   label="Keep ratio"
-                  onChange={(checked) => {
-                    field.handleChange(checked)
-                    onKeepRatioChange(checked)
-                  }}
+                  onChange={onKeepRatioChange}
                 />
               )}
             </form.Field>
