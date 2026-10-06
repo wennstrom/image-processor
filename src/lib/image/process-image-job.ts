@@ -25,6 +25,9 @@ export async function processImageJob(
     contrast: values.contrast,
     saturation: values.saturation,
     grayscale: values.grayscale,
+    sepia: values.sepia,
+    sharpen: values.sharpen,
+    vintage: values.vintage,
   })
   const response = await processImageFn({ data: body })
   const bytes = await response.arrayBuffer()

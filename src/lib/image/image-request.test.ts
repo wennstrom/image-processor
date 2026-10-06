@@ -19,6 +19,9 @@ describe("image process request", () => {
       contrast: 160,
       saturation: 20,
       grayscale: true,
+      sepia: true,
+      sharpen: false,
+      vintage: true,
     })
 
     expect(parseImageRequest(body)).toMatchObject({
@@ -30,6 +33,9 @@ describe("image process request", () => {
       contrast: 160,
       saturation: 20,
       grayscale: true,
+      sepia: true,
+      sharpen: false,
+      vintage: true,
     })
   })
 })

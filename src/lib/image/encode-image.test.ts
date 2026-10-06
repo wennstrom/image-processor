@@ -12,6 +12,9 @@ const neutral = {
   contrast: 100,
   saturation: 100,
   grayscale: false,
+  sepia: false,
+  sharpen: false,
+  vintage: false,
 }
 
 async function twoTonePng() {

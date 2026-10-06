@@ -25,6 +25,9 @@ export const imageRequestSchema = z.object({
   contrast: percent("Contrast"),
   saturation: percent("Saturation"),
   grayscale: z.boolean(),
+  sepia: z.boolean(),
+  sharpen: z.boolean(),
+  vintage: z.boolean(),
 })
 
 export type ImageProcessRequest = z.infer<typeof imageRequestSchema>
@@ -38,6 +41,9 @@ export function imageProcessFormData(value: {
   contrast: number
   saturation: number
   grayscale: boolean
+  sepia: boolean
+  sharpen: boolean
+  vintage: boolean
 }) {
   const body = new FormData()
   body.set("image", value.image)
@@ -48,11 +54,18 @@ export function imageProcessFormData(value: {
   body.set("contrast", String(value.contrast))
   body.set("saturation", String(value.saturation))
   body.set("grayscale", String(value.grayscale))
+  body.set("sepia", String(value.sepia))
+  body.set("sharpen", String(value.sharpen))
+  body.set("vintage", String(value.vintage))
   return body
 }
 
 function formNumber(data: FormData, key: string) {
   return Number(data.get(key))
+}
+
+function formBoolean(data: FormData, key: string) {
+  return data.get(key) === "true"
 }
 
 export function parseImageRequest(data: FormData) {
@@ -68,6 +81,9 @@ export function parseImageRequest(data: FormData) {
     brightness: formNumber(data, "brightness"),
     contrast: formNumber(data, "contrast"),
     saturation: formNumber(data, "saturation"),
-    grayscale: data.get("grayscale") === "true",
+    grayscale: formBoolean(data, "grayscale"),
+    sepia: formBoolean(data, "sepia"),
+    sharpen: formBoolean(data, "sharpen"),
+    vintage: formBoolean(data, "vintage"),
   })
 }
