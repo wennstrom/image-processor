@@ -5,8 +5,8 @@ import {
   changeDimension,
   ratioOf,
   setKeepRatio,
-  type DimensionState,
 } from "@/lib/image/aspect-ratio"
+import type { DimensionState } from "@/lib/image/aspect-ratio"
 
 const base: DimensionState = {
   width: 200,

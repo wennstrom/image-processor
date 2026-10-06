@@ -39,9 +39,11 @@ export function useImageJobForm() {
         // Drop the result if the image was replaced or removed mid-flight.
         if (imageRef.current === file) setProcessedImage(processed)
       } catch (error) {
-        setSubmitError(
-          error instanceof Error ? error.message : "Image processing failed"
-        )
+        if (imageRef.current === file) {
+          setSubmitError(
+            error instanceof Error ? error.message : "Image processing failed"
+          )
+        }
       }
     },
   })

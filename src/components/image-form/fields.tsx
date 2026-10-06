@@ -86,7 +86,8 @@ export function CheckboxField({
   label: string
   onChange?: (checked: boolean) => void
 }) {
-  const handleChange = onChange ?? ((checked: boolean) => field.handleChange(checked))
+  const handleChange =
+    onChange ?? ((checked: boolean) => field.handleChange(checked))
   return (
     <label className="flex items-center gap-2 text-sm font-medium">
       <input

@@ -1,6 +1,4 @@
-export function firstError(
-  errors: ReadonlyArray<unknown>
-): string | undefined {
+export function firstError(errors: ReadonlyArray<unknown>): string | undefined {
   const first = errors[0]
   if (typeof first === "string") return first
   if (
