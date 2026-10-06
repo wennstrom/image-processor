@@ -49,3 +49,37 @@ export const imageFormSubmitSchema = imageFormSchema.extend({
 
 export type ImageFormValues = z.infer<typeof imageFormSchema>
 export type Resolution = ImageFormValues["resolution"]
+
+export const effects = [
+  { name: "grayscale", label: "Grayscale" },
+  { name: "sepia", label: "Sepia" },
+  { name: "sharpen", label: "Sharpen" },
+  { name: "vintage", label: "Vintage" },
+] as const satisfies ReadonlyArray<{
+  name: keyof ImageFormValues
+  label: string
+}>
+
+export const adjustments = [
+  { name: "brightness", label: "Brightness" },
+  { name: "contrast", label: "Contrast" },
+  { name: "saturation", label: "Saturation" },
+] as const satisfies ReadonlyArray<{
+  name: keyof ImageFormValues
+  label: string
+}>
+
+export const defaultImageFormValues: ImageFormValues = {
+  image: null,
+  width: null,
+  height: null,
+  keepRatio: true,
+  resolution: 150,
+  brightness: 100,
+  contrast: 100,
+  saturation: 100,
+  grayscale: false,
+  sepia: false,
+  sharpen: false,
+  vintage: false,
+}
