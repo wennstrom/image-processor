@@ -8,8 +8,8 @@ import {
   PercentSliderField,
   ResolutionField,
 } from "@/components/image-form/fields"
+import { FormActions } from "@/components/image-form/form-actions"
 import { ImageDropzone } from "@/components/image-form/image-dropzone"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -17,9 +17,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { downloadFile } from "@/lib/download-file"
 import * as ratio from "@/lib/image/aspect-ratio"
-import { imageProcessFormData } from "@/lib/image/image-request"
+import { processImageJob } from "@/lib/image/process-image-job"
 import { readImageSize } from "@/lib/image/read-image-size"
 import {
   adjustments,
@@ -29,16 +28,14 @@ import {
   imageFormSchema,
   imageFormSubmitSchema,
 } from "@/lib/validation/image-form"
-import { processImageFn } from "@/server/image"
 
 export function ImageJobForm() {
-  const { image, processedImage, setImage, setProcessedImage } =
-    useImageContext()
-  const downloadable = processedImage ?? image
+  const { image, setImage, setProcessedImage } = useImageContext()
   const imageRef = useRef(image)
   imageRef.current = image
   const latestAccepted = useRef<File | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: defaultImageFormValues,
@@ -48,27 +45,21 @@ export function ImageJobForm() {
     },
     onSubmit: async ({ value }) => {
       const file = imageRef.current
-      if (!file) return
+      if (!file) {
+        setSubmitError("Upload an image")
+        return
+      }
       const values = imageFormSubmitSchema.parse(value)
-
-      const body = imageProcessFormData({
-        image: file,
-        resolution: values.resolution,
-        width: values.width,
-        height: values.height,
-        brightness: values.brightness,
-        contrast: values.contrast,
-        saturation: values.saturation,
-        grayscale: values.grayscale,
-      })
-
-      const response = await processImageFn({ data: body })
-      const bytes = await response.arrayBuffer()
-      setProcessedImage(
-        new File([bytes], file.name, {
-          type: response.headers.get("content-type") ?? file.type,
-        })
-      )
+      setSubmitError(null)
+      try {
+        const processed = await processImageJob(file, values)
+        // Drop the result if the image was replaced or removed mid-flight.
+        if (imageRef.current === file) setProcessedImage(processed)
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error ? error.message : "Image processing failed"
+        )
+      }
     },
   })
 
@@ -104,6 +95,7 @@ export function ImageJobForm() {
   }
 
   async function acceptImage(file: File | null) {
+    setSubmitError(null)
     if (file === null) {
       setImage(null)
       setProcessedImage(null)
@@ -206,17 +198,15 @@ export function ImageJobForm() {
           </div>
         </CardContent>
         <CardFooter className="shrink-0 flex-row gap-2">
-          <Button type="submit">Process image</Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!downloadable}
-            onClick={() => {
-              if (downloadable) downloadFile(downloadable)
-            }}
-          >
-            Download Image
-          </Button>
+          <form.Subscribe selector={(s) => s.isSubmitting}>
+            {(isSubmitting) => (
+              <FormActions
+                pending={isSubmitting}
+                canSubmit={image !== null}
+                submitError={submitError}
+              />
+            )}
+          </form.Subscribe>
         </CardFooter>
       </form>
     </Card>
