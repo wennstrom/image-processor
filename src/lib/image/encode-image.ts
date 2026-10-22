@@ -1,5 +1,6 @@
 import { Data, Effect } from "effect"
-import sharp, { type Sharp } from "sharp"
+import sharp from "sharp"
+import type { Sharp } from "sharp"
 
 export class ImageProcessingError extends Data.TaggedError(
   "ImageProcessingError"
@@ -95,8 +96,8 @@ export const resampleToDpi = (
     }
 
     const scale = dpi / sourceDpi
-    const width = Math.round((metadata.width ?? 0) * scale)
-    const height = Math.round((metadata.height ?? 0) * scale)
+    const width = Math.round(metadata.width * scale)
+    const height = Math.round(metadata.height * scale)
 
     if (width === 0 || height === 0) {
       return yield* Effect.fail(
