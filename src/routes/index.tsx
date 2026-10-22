@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { ImageProvider } from "@/components/image-context"
 import { ImageJobForm } from "@/components/image-form"
-import { ImagePreview } from "@/components/image-preview"
+import { ImagePreview } from "@/components/image-preview/image-preview"
 import { Header } from "@/components/header"
 
 export const Route = createFileRoute("/")({

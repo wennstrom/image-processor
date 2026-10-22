@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { processImage, resampleToDpi } from "@/lib/image/encode-image"
 import { parseImageRequest } from "@/lib/image/image-request"
+import { mimeForFormat } from "@/lib/image/output-file"
 import type { Resolution } from "@/lib/validation/image-form"
 import { resolutions } from "@/lib/validation/image-form"
 
@@ -53,5 +54,5 @@ export const processImageFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const input = await bytesFromFile(data.image)
     const output = await Effect.runPromise(processImage(input, data))
-    return imageResponse(output, data.image.type)
+    return imageResponse(output, mimeForFormat(data.format))
   })

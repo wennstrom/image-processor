@@ -5,7 +5,7 @@ export class ImageProcessingError extends Data.TaggedError(
   "ImageProcessingError"
 )<{
   readonly message: string
-}> {}
+}> { }
 
 const toImageError = (cause: unknown) =>
   new ImageProcessingError({
@@ -41,18 +41,59 @@ const addEffects = (
   brightness: number,
   contrast: number,
   saturation: number,
-  grayscale: boolean
+  grayscale: boolean,
+  sepia: boolean,
+  sharpen: boolean,
+  vintage: boolean
 ) =>
   Effect.tryPromise({
     try: () => {
-      const adjusted = image
+      let pipeline = image
         .modulate({
           brightness,
           saturation: grayscale ? 0 : saturation,
         })
         .linear(contrast, 128 * (1 - contrast))
 
-      return (grayscale ? adjusted.grayscale() : adjusted).toBuffer()
+      if (grayscale) {
+        pipeline = pipeline.grayscale()
+      }
+      if (sepia) {
+        pipeline = pipeline.recomb([
+          [0.393, 0.769, 0.189],
+          [0.349, 0.686, 0.168],
+          [0.272, 0.534, 0.131],
+        ])
+      }
+      if (vintage) {
+        pipeline = pipeline
+          .modulate({ saturation: 0.7, brightness: 1.05 }) // muted, slightly lifted
+          .tint({ r: 255, g: 220, b: 180 }) // warm cast
+          .linear(0.9, 20)
+      }
+      if (sharpen) {
+        pipeline = pipeline.sharpen({ sigma: 1.2 })
+      }
+
+      return pipeline.toBuffer()
+    },
+    catch: toImageError,
+  })
+
+const encodeFormat = (
+  image: Sharp,
+  format: "jpeg" | "png" | "webp"
+) =>
+  Effect.tryPromise({
+    try: () => {
+      switch (format) {
+        case "jpeg":
+          return image.jpeg().toBuffer()
+        case "png":
+          return image.png().toBuffer()
+        case "webp":
+          return image.webp().toBuffer()
+      }
     },
     catch: toImageError,
   })
@@ -89,29 +130,41 @@ export const processImage = (
     dpi,
     width,
     height,
+    format,
     brightness,
     contrast,
     saturation,
     grayscale,
+    sepia,
+    sharpen,
+    vintage,
   }: {
     dpi: number
     width: number
     height: number
+    format: "jpeg" | "png" | "webp"
     brightness: number
     contrast: number
     saturation: number
     grayscale: boolean
+    sepia: boolean
+    sharpen: boolean
+    vintage: boolean
   }
 ): Effect.Effect<Buffer, ImageProcessingError> =>
   Effect.gen(function* () {
     const resized = yield* resizeToDimensions(sharp(input), width, height)
     const resampled = yield* resampleToDpi(resized, dpi)
-
-    return yield* addEffects(
+    const effected = yield* addEffects(
       sharp(resampled),
       brightness / 100,
       contrast / 100,
       saturation / 100,
-      grayscale
+      grayscale,
+      sepia,
+      sharpen,
+      vintage
     )
+
+    return yield* encodeFormat(sharp(effected), format)
   })

@@ -28,6 +28,7 @@
     "effect": "^3.22.2",
     "lucide-react": "^1.47.0",
     "react": "^19.2.8",
+    "react-compare-image": "^3.5.23",
     "react-dom": "^19.2.8",
     "shadcn": "^4.21.0",
     "sharp": "^0.35.5",

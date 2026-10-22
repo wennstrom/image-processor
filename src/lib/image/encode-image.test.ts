@@ -8,6 +8,7 @@ const neutral = {
   dpi: 72,
   width: 4,
   height: 2,
+  format: "png" as const,
   brightness: 100,
   contrast: 100,
   saturation: 100,

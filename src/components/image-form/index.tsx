@@ -1,10 +1,3 @@
-import {
-  CheckboxField,
-  DimensionField,
-  PercentSliderField,
-  ResolutionField,
-} from "@/components/image-form/fields"
-import { FormActions } from "@/components/image-form/form-actions"
 import { ImageDropzone } from "@/components/image-form/image-dropzone"
 import { useImageJobForm } from "@/components/image-form/use-image-job-form"
 import {
@@ -24,6 +17,7 @@ export function ImageJobForm({ className }: { className?: string }) {
     imageError,
     submitError,
     acceptImage,
+    resetToOriginal,
     changeDimension,
     toggleKeepRatio,
   } = useImageJobForm()
@@ -38,85 +32,91 @@ export function ImageJobForm({ className }: { className?: string }) {
         onSubmit={(event) => {
           event.preventDefault()
           event.stopPropagation()
-          void form.handleSubmit()
         }}
       >
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          <ImageDropzone
-            file={image}
-            error={imageError ?? undefined}
-            inputId="image"
-            onFile={(file) => {
-              void acceptImage(file)
-            }}
-          />
+        <form.AppForm>
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+            <ImageDropzone
+              file={image}
+              error={imageError ?? undefined}
+              inputId="image"
+              onFile={(file) => {
+                void acceptImage(file)
+              }}
+            />
 
-          <fieldset className="flex flex-col gap-2">
-            <div className="grid grid-cols-2 gap-2">
-              <form.Field name="width">
+            <form.Subscribe selector={(s) => s.values.format}>
+              {(format) => (
+                <form.AppField name="name">
+                  {(field) => <field.NameField format={format} />}
+                </form.AppField>
+              )}
+            </form.Subscribe>
+
+            <form.AppField name="format">
+              {(field) => <field.FormatField />}
+            </form.AppField>
+
+            <fieldset className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <form.AppField name="width">
+                  {(field) => (
+                    <field.DimensionField
+                      label="Width (px)"
+                      onChange={(value) => changeDimension("width", value)}
+                    />
+                  )}
+                </form.AppField>
+                <form.AppField name="height">
+                  {(field) => (
+                    <field.DimensionField
+                      label="Height (px)"
+                      onChange={(value) => changeDimension("height", value)}
+                    />
+                  )}
+                </form.AppField>
+              </div>
+              <form.AppField name="keepRatio">
                 {(field) => (
-                  <DimensionField
-                    field={field}
-                    label="Width (px)"
-                    onChange={(value) => changeDimension("width", value)}
+                  <field.CheckboxField
+                    label="Keep ratio"
+                    onChange={toggleKeepRatio}
                   />
                 )}
-              </form.Field>
-              <form.Field name="height">
+              </form.AppField>
+            </fieldset>
+
+            <form.AppField name="resolution">
+              {(field) => <field.ResolutionField />}
+            </form.AppField>
+
+            {adjustments.map((adjustment) => (
+              <form.AppField key={adjustment.name} name={adjustment.name}>
                 {(field) => (
-                  <DimensionField
-                    field={field}
-                    label="Height (px)"
-                    onChange={(value) => changeDimension("height", value)}
-                  />
+                  <field.PercentSliderField label={adjustment.label} />
                 )}
-              </form.Field>
-            </div>
-            <form.Field name="keepRatio">
-              {(field) => (
-                <CheckboxField
-                  field={field}
-                  label="Keep ratio"
-                  onChange={toggleKeepRatio}
-                />
-              )}
-            </form.Field>
-          </fieldset>
-
-          <form.Field name="resolution">
-            {(field) => <ResolutionField field={field} />}
-          </form.Field>
-
-          {adjustments.map((adjustment) => (
-            <form.Field key={adjustment.name} name={adjustment.name}>
-              {(field) => (
-                <PercentSliderField field={field} label={adjustment.label} />
-              )}
-            </form.Field>
-          ))}
-
-          <div className="grid grid-cols-2 gap-2">
-            {effects.map((effect) => (
-              <form.Field key={effect.name} name={effect.name}>
-                {(field) => (
-                  <CheckboxField field={field} label={effect.label} />
-                )}
-              </form.Field>
+              </form.AppField>
             ))}
-          </div>
-        </CardContent>
 
-        <CardFooter className="shrink-0 flex-row gap-2">
-          <form.Subscribe selector={(s) => s.isSubmitting}>
-            {(isSubmitting) => (
-              <FormActions
-                pending={isSubmitting}
-                canSubmit={image !== null}
-                submitError={submitError}
-              />
-            )}
-          </form.Subscribe>
-        </CardFooter>
+            <div className="grid grid-cols-2 gap-2">
+              {effects.map((effect) => (
+                <form.AppField key={effect.name} name={effect.name}>
+                  {(field) => <field.CheckboxField label={effect.label} />}
+                </form.AppField>
+              ))}
+            </div>
+          </CardContent>
+
+          <CardFooter className="shrink-0 flex-row gap-2">
+            <form.FormActions
+              canReset={image !== null}
+              submitError={submitError}
+              onReset={() => {
+                void resetToOriginal()
+              }}
+            />
+          </CardFooter>
+        </form.AppForm>
       </form>
     </Card>
   )

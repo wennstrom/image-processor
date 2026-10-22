@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+export const outputFormats = ["jpeg", "png", "webp"] as const
+
 export const resolutions = [72, 150, 300] as const
 
 export const imageTypes = [
@@ -18,6 +20,15 @@ export const dimensionSchema = z
   .int("Use a whole number")
   .positive("Must be at least 1")
 
+export const basenameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a name")
+  .max(255, "Name must be 255 characters or fewer")
+  .refine((value) => !value.includes("/") && !value.includes("\\"), {
+    message: "Name cannot include a path",
+  })
+
 function percent(label: string) {
   return z
     .number()
@@ -27,6 +38,8 @@ function percent(label: string) {
 }
 
 export const imageFormSchema = z.object({
+  name: basenameSchema.or(z.literal("")),
+  format: z.enum(outputFormats),
   width: dimensionSchema.nullable(),
   height: dimensionSchema.nullable(),
   keepRatio: z.boolean(),
@@ -42,6 +55,7 @@ export const imageFormSchema = z.object({
 })
 
 export const imageFormSubmitSchema = imageFormSchema.extend({
+  name: basenameSchema,
   width: dimensionSchema,
   height: dimensionSchema,
 })
@@ -49,6 +63,7 @@ export const imageFormSubmitSchema = imageFormSchema.extend({
 export type ImageFormValues = z.infer<typeof imageFormSchema>
 export type ImageFormSubmitValues = z.infer<typeof imageFormSubmitSchema>
 export type Resolution = ImageFormValues["resolution"]
+export type OutputFormat = ImageFormValues["format"]
 
 export const effects = [
   { name: "grayscale", label: "Grayscale" },
@@ -69,7 +84,18 @@ export const adjustments = [
   label: string
 }>
 
+export const formatOptions = [
+  { value: "jpeg", label: "JPEG" },
+  { value: "png", label: "PNG" },
+  { value: "webp", label: "WebP" },
+] as const satisfies ReadonlyArray<{
+  value: OutputFormat
+  label: string
+}>
+
 export const defaultImageFormValues: ImageFormValues = {
+  name: "",
+  format: "png",
   width: null,
   height: null,
   keepRatio: true,

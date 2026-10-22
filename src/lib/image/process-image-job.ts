@@ -1,14 +1,16 @@
 import { imageProcessFormData } from "@/lib/image/image-request"
+import { mimeForFormat, outputFilename } from "@/lib/image/output-file"
 import type { ImageFormSubmitValues } from "@/lib/validation/image-form"
 import { processImageFn } from "@/server/image"
 
 export function fileFromResponse(
   response: Response,
   bytes: ArrayBuffer,
-  source: File
+  outputName: string,
+  fallbackType: string
 ): File {
-  return new File([bytes], source.name, {
-    type: response.headers.get("content-type") ?? source.type,
+  return new File([bytes], outputName, {
+    type: response.headers.get("content-type") ?? fallbackType,
   })
 }
 
@@ -21,6 +23,7 @@ export async function processImageJob(
     resolution: values.resolution,
     width: values.width,
     height: values.height,
+    format: values.format,
     brightness: values.brightness,
     contrast: values.contrast,
     saturation: values.saturation,
@@ -31,5 +34,10 @@ export async function processImageJob(
   })
   const response = await processImageFn({ data: body })
   const bytes = await response.arrayBuffer()
-  return fileFromResponse(response, bytes, image)
+  return fileFromResponse(
+    response,
+    bytes,
+    outputFilename(values.name, values.format),
+    mimeForFormat(values.format)
+  )
 }

@@ -1,9 +1,10 @@
 import { z } from "zod"
 
-import type { Resolution } from "@/lib/validation/image-form"
-import { resolutions } from "@/lib/validation/image-form"
+import type { OutputFormat, Resolution } from "@/lib/validation/image-form"
+import { outputFormats, resolutions } from "@/lib/validation/image-form"
 
 const allowedDpi = new Set<number>(resolutions)
+const allowedFormats = new Set<string>(outputFormats)
 
 function percent(label: string) {
   return z
@@ -21,6 +22,10 @@ export const imageRequestSchema = z.object({
   ),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  format: z.custom<OutputFormat>(
+    (value) => typeof value === "string" && allowedFormats.has(value),
+    "Format must be jpeg, png, or webp"
+  ),
   brightness: percent("Brightness"),
   contrast: percent("Contrast"),
   saturation: percent("Saturation"),
@@ -37,6 +42,7 @@ export function imageProcessFormData(value: {
   resolution: Resolution
   width: number
   height: number
+  format: OutputFormat
   brightness: number
   contrast: number
   saturation: number
@@ -50,6 +56,7 @@ export function imageProcessFormData(value: {
   body.set("dpi", String(value.resolution))
   body.set("width", String(value.width))
   body.set("height", String(value.height))
+  body.set("format", value.format)
   body.set("brightness", String(value.brightness))
   body.set("contrast", String(value.contrast))
   body.set("saturation", String(value.saturation))
@@ -78,6 +85,7 @@ export function parseImageRequest(data: FormData) {
     dpi: formNumber(data, "dpi"),
     width: formNumber(data, "width"),
     height: formNumber(data, "height"),
+    format: data.get("format"),
     brightness: formNumber(data, "brightness"),
     contrast: formNumber(data, "contrast"),
     saturation: formNumber(data, "saturation"),
