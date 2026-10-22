@@ -16,3 +16,6 @@ todos.json
 
 .worktrees/
 .superpowers/
+
+# Generated Netlify function bundles
+.netlify/
