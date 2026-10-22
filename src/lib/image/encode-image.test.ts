@@ -71,6 +71,16 @@ async function processed(input: Buffer, options: Partial<typeof neutral> = {}) {
 }
 
 describe("processImage", () => {
+  it("stores dpi on the requested pixel size", async () => {
+    const input = await twoTonePng()
+    const output = await processed(input, { dpi: 300, width: 4, height: 2 })
+    const metadata = await sharp(output).metadata()
+
+    expect(metadata.width).toBe(4)
+    expect(metadata.height).toBe(2)
+    expect(metadata.density).toBe(300)
+  })
+
   it("darkens pixels when brightness is below neutral", async () => {
     const input = await twoTonePng()
     const original = await channelStats(await processed(input))

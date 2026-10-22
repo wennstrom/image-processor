@@ -5,7 +5,7 @@ export class ImageProcessingError extends Data.TaggedError(
   "ImageProcessingError"
 )<{
   readonly message: string
-}> { }
+}> {}
 
 const toImageError = (cause: unknown) =>
   new ImageProcessingError({
@@ -30,13 +30,7 @@ const resizeToDpi = (
     catch: toImageError,
   })
 
-const resizeToDimensions = (image: Sharp, width: number, height: number) =>
-  Effect.tryPromise({
-    try: () => image.resize({ width, height }).toBuffer(),
-    catch: toImageError,
-  })
-
-const addEffects = (
+function applyEffects(
   image: Sharp,
   brightness: number,
   contrast: number,
@@ -45,58 +39,47 @@ const addEffects = (
   sepia: boolean,
   sharpen: boolean,
   vintage: boolean
-) =>
-  Effect.tryPromise({
-    try: () => {
-      let pipeline = image
-        .modulate({
-          brightness,
-          saturation: grayscale ? 0 : saturation,
-        })
-        .linear(contrast, 128 * (1 - contrast))
+) {
+  let pipeline = image
+    .modulate({
+      brightness,
+      saturation: grayscale ? 0 : saturation,
+    })
+    .linear(contrast, 128 * (1 - contrast))
 
-      if (grayscale) {
-        pipeline = pipeline.grayscale()
-      }
-      if (sepia) {
-        pipeline = pipeline.recomb([
-          [0.393, 0.769, 0.189],
-          [0.349, 0.686, 0.168],
-          [0.272, 0.534, 0.131],
-        ])
-      }
-      if (vintage) {
-        pipeline = pipeline
-          .modulate({ saturation: 0.7, brightness: 1.05 }) // muted, slightly lifted
-          .tint({ r: 255, g: 220, b: 180 }) // warm cast
-          .linear(0.9, 20)
-      }
-      if (sharpen) {
-        pipeline = pipeline.sharpen({ sigma: 1.2 })
-      }
+  if (grayscale) {
+    pipeline = pipeline.grayscale()
+  }
+  if (sepia) {
+    pipeline = pipeline.recomb([
+      [0.393, 0.769, 0.189],
+      [0.349, 0.686, 0.168],
+      [0.272, 0.534, 0.131],
+    ])
+  }
+  if (vintage) {
+    pipeline = pipeline
+      .modulate({ saturation: 0.7, brightness: 1.05 }) // muted, slightly lifted
+      .tint({ r: 255, g: 220, b: 180 }) // warm cast
+      .linear(0.9, 20)
+  }
+  if (sharpen) {
+    pipeline = pipeline.sharpen({ sigma: 1.2 })
+  }
 
-      return pipeline.toBuffer()
-    },
-    catch: toImageError,
-  })
+  return pipeline
+}
 
-const encodeFormat = (
-  image: Sharp,
-  format: "jpeg" | "png" | "webp"
-) =>
-  Effect.tryPromise({
-    try: () => {
-      switch (format) {
-        case "jpeg":
-          return image.jpeg().toBuffer()
-        case "png":
-          return image.png().toBuffer()
-        case "webp":
-          return image.webp().toBuffer()
-      }
-    },
-    catch: toImageError,
-  })
+function encodeFormat(image: Sharp, format: "jpeg" | "png" | "webp") {
+  switch (format) {
+    case "jpeg":
+      return image.jpeg()
+    case "png":
+      return image.png()
+    case "webp":
+      return image.webp()
+  }
+}
 
 export const resampleToDpi = (
   input: Buffer,
@@ -152,19 +135,22 @@ export const processImage = (
     vintage: boolean
   }
 ): Effect.Effect<Buffer, ImageProcessingError> =>
-  Effect.gen(function* () {
-    const resized = yield* resizeToDimensions(sharp(input), width, height)
-    const resampled = yield* resampleToDpi(resized, dpi)
-    const effected = yield* addEffects(
-      sharp(resampled),
-      brightness / 100,
-      contrast / 100,
-      saturation / 100,
-      grayscale,
-      sepia,
-      sharpen,
-      vintage
-    )
-
-    return yield* encodeFormat(sharp(effected), format)
+  Effect.tryPromise({
+    try: () =>
+      encodeFormat(
+        applyEffects(
+          sharp(input).resize({ width, height }),
+          brightness / 100,
+          contrast / 100,
+          saturation / 100,
+          grayscale,
+          sepia,
+          sharpen,
+          vintage
+        ),
+        format
+      )
+        .withDensity(dpi)
+        .toBuffer(),
+    catch: toImageError,
   })
